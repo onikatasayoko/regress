@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>回归分析工具｜本地数据拟合与绘图</title>
+<meta name="description" content="免费、纯前端的实验数据回归分析工具，支持线性、二次、指数、幂函数和对数拟合，生成可导出的 SVG 与高清 PNG。数据仅在浏览器本地处理。">
+
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{--bg:#f0f2f5;--card:#fff;--accent:#2563eb;--accent2:#1d4ed8;--red:#e63946;--text:#1e293b;--muted:#64748b;--border:#e2e8f0;--radius:12px}
+
+body{font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+.header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 60%,#3b82f6 100%);color:#fff;padding:14px 24px;font-size:1.15em;font-weight:700;letter-spacing:.04em;user-select:none;display:flex;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(37,99,235,.25)}
+
+.header svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.privacy-badge{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:0;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 9px;white-space:nowrap}
+
+.main{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px;height:calc(100vh - 50px)}
+
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 4px rgba(0,0,0,.05);padding:16px;overflow-y:auto}
+
+.panel::-webkit-scrollbar{width:5px}
+
+.panel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
+
+.left{display:flex;flex-direction:column;gap:2px}
+
+.right{display:flex;flex-direction:column;min-height:0;gap:10px}
+
+.status{padding:9px 12px;border-radius:8px;font-size:12px;border:1px solid #dbeafe;background:#eff6ff;color:#1e40af;display:none}
+
+.status.show{display:block}
+
+.status.error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+
+.sec-title{font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:14px 0 7px;display:flex;align-items:center;gap:6px}
+
+.sec-title:first-child{margin-top:2px}
+
+.sec-title .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800}
+
+textarea{width:100%;height:170px;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono','Cascadia Code',Consolas,monospace;font-size:12px;line-height:1.7;resize:vertical;color:var(--text);background:#fafbfd;transition:border .2s,box-shadow .2s}
+
+textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+
+textarea::placeholder{color:#b0bec5}
+
+.tip{font-size:10.5px;color:#94a3b8;margin-top:4px;line-height:1.5}
+
+.model-hint{min-height:32px;padding:7px 9px;border-left:3px solid #bfdbfe;background:#f8fbff;color:#54708e;border-radius:0 6px 6px 0}
+
+select,input[type=text],input[type=number]{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:12.5px;color:var(--text);background:#fff;transition:border .2s}
+
+select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+
+select{cursor:pointer;appearance:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%2364748b' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") right 10px center no-repeat #fff}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.field label{display:block;font-size:10.5px;color:var(--muted);font-weight:600;margin-bottom:3px}
+
+.btn-row{display:flex;gap:7px;margin-top:14px}
+
+.btn{flex:1;padding:10px 12px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+
+.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 14px rgba(37,99,235,.35);transform:translateY(-1px)}
+
+.btn-primary:active{transform:translateY(0);box-shadow:0 1px 4px rgba(37,99,235,.25)}
+
+.btn-secondary{flex:0 0 auto;background:#f1f5f9;color:#475569;border:1.5px solid var(--border)}
+
+.btn-secondary:hover{background:#e2e8f0;border-color:#cbd5e1}
+
+.mini-row{display:flex;gap:7px;margin-top:7px}
+
+.mini-btn{flex:1;padding:7px 8px;border:1px solid var(--border);background:#fff;border-radius:7px;font-size:11px;color:#475569;cursor:pointer}
+
+.mini-btn:hover{background:#f8fafc;border-color:#cbd5e1}
+
+.png-export-row{align-items:stretch}
+
+.png-export-row .mini-btn{flex:1 1 auto;min-width:0}
+
+.png-scale{flex:0 1 148px;min-width:0;border:1px solid var(--border);border-radius:7px;padding:7px 28px 7px 8px;font-size:11px;color:#475569;background-color:#fff}
+
+.chart-tools{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;flex-shrink:0}
+
+.chart-tools .label{font-size:12px;color:#475569;font-weight:600;white-space:nowrap}
+
+.chart-tools input[type=range]{flex:1}
+
+.chart-scale{font-size:12px;color:#334155;min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+
+.chart-tools .mini-btn{flex:0 0 auto;padding:6px 10px}
+
+.chart-wrap{flex:1;display:flex;align-items:flex-start;justify-content:flex-start;overflow:auto;min-height:0;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;padding:8px}
+
+.chart-wrap svg{display:block;max-width:none;height:auto;animation:fadeInUp .35s ease-out}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.chart-wrap::-webkit-scrollbar{width:8px;height:8px}
+
+.chart-wrap::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+
+.ph{color:#94a3b8;text-align:center;line-height:2;font-size:13px}
+
+.ph-icon{font-size:48px;opacity:.5;display:block;margin-bottom:8px}
+
+.stats{background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1.5px solid #e0e7ff;border-radius:10px;padding:14px 18px;flex-shrink:0}
+
+.eq-line{font-family:'Times New Roman',Georgia,serif;font-size:15px;font-weight:700;color:var(--accent2);margin-bottom:8px;word-break:break-all}
+
+.stats-nums{display:flex;gap:20px;font-size:12.5px;flex-wrap:wrap}
+
+.stats-nums .label{color:var(--muted)}
+
+.stats-nums .value{font-weight:700;font-family:'JetBrains Mono',Consolas,monospace;color:var(--text)}
+
+.err-box{background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;color:#dc2626;padding:12px 16px;font-size:13px;line-height:1.6;display:flex;align-items:flex-start;gap:8px}
+
+.toast{position:fixed;right:14px;bottom:14px;background:#0f172a;color:#fff;padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 8px 24px rgba(15,23,42,.25);opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
+
+.toast.show{opacity:1;transform:translateY(0)}
+
+kbd{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;font-size:10px;font-family:monospace;color:#475569}
+
+@media(max-width:820px){
+
+  body{height:auto;min-height:100dvh;overflow:auto}
+
+  .main{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:calc(100dvh - 50px)}
+
+  .left{max-height:45vh;overflow-y:auto}
+
+  .right{min-height:500px}
+
+  textarea{height:100px}
+
+  .png-scale{flex:1 1 148px}
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+  <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+
+  回归分析工具 <span class="privacy-badge">纯前端 · 数据不上传</span>
+
+</div>
+
+<div class="main">
+
+  <div class="panel left">
+
+    <div class="sec-title"><span class="num">1</span>输入数据</div>
+
+    <textarea id="data" spellcheck="false" placeholder="每行一个数据点，x y 用空格/逗号/Tab 分隔&#10;&#10;示例：&#10;1    2.1&#10;2    3.9&#10;3    6.2&#10;4    7.8&#10;5   10.1&#10;&#10;# 井号开头为注释"></textarea>
+
+    <p class="tip"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 运行 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 存SVG · <kbd>Ctrl</kbd>+<kbd>E</kbd> 存PNG</p>
+
+    <div class="sec-title"><span class="num">2</span>拟合类型</div>
+
+    <select id="regType">
+
+      <option value="linear">线性  y = ax + b</option>
+
+      <option value="quadratic">二次  y = ax² + bx + c</option>
+
+      <option value="exp">指数  y = a·e^(bx)  (y>0)</option>
+
+      <option value="power">幂函数  y = a·x^b  (x,y>0)</option>
+
+      <option value="log">对数  y = a·ln(x) + b  (x>0)</option>
+
+    </select>
+
+    <p id="modelHint" class="tip model-hint" role="status">线性拟合：R 为 Pearson 相关系数，R² 为决定系数。</p>
+
+    <div class="sec-title"><span class="num">3</span>坐标轴（可选）</div>
+
+    <div class="g2">
+
+      <div class="field"><label>X 轴名称</label><input type="text" id="xLabel" placeholder="时间"></div>
+
+      <div class="field"><label>Y 轴名称</label><input type="text" id="yLabel" placeholder="位移"></div>
+
+      <div class="field"><label>X 单位</label><input type="text" id="xUnit" placeholder="s"></div>
+
+      <div class="field"><label>Y 单位</label><input type="text" id="yUnit" placeholder="m"></div>
+
+      <div class="field"><label>X 刻度间隔</label><input type="number" id="xStep" value="0" min="0" step="any" placeholder="0=自动"></div>
+
+      <div class="field"><label>Y 刻度间隔</label><input type="number" id="yStep" value="0" min="0" step="any" placeholder="0=自动"></div>
+
+    </div>
+
+    <div class="btn-row">
+
+      <button class="btn btn-primary" id="calcBtn" onclick="doCalc()">
+
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+
+        计算并绘图
+
+      </button>
+
+      <button class="btn btn-secondary" onclick="doSave()" title="保存 SVG (Ctrl+S)" aria-label="保存 SVG">💾</button>
+
+      <button class="btn btn-secondary" id="savePngBtn" onclick="doSavePNG()" title="保存 2× PNG (Ctrl+E)" aria-label="保存 2× PNG">🖼️</button>
+
+      <button class="btn btn-secondary" onclick="doCopy()" title="复制方程" aria-label="复制方程" id="copyBtn">📋</button>
+
+    </div>
+
+    <div class="mini-row">
+
+      <button class="mini-btn" onclick="fillExample()">示例数据</button>
+
+      <button class="mini-btn" onclick="clearAll()">清空输入</button>
+
+    </div>
+
+    <div class="mini-row png-export-row">
+
+      <button class="mini-btn" id="saveHighPngBtn" type="button" onclick="doSaveHighPNG()" title="按所选倍率导出高清 PNG" aria-label="按所选倍率导出高清 PNG">✨ 高清 PNG</button>
+
+      <select class="png-scale" id="pngScale" title="选择高清 PNG 导出倍率" aria-label="选择高清 PNG 导出倍率">
+
+        <option value="2">2×（1800×1140）</option>
+
+        <option value="4" selected>4×（3600×2280）</option>
+
+        <option value="6">6×（5400×3420）</option>
+
+        <option value="8">8×（7200×4560）</option>
+
+      </select>
+
+    </div>
+
+  </div>
+
+  <div class="panel right">
+
+    <div id="statusBar" class="status"></div>
+
+    <div class="chart-tools">
+
+      <span class="label">图像缩放</span>
+
+      <input id="chartScale" type="range" min="60" max="180" step="5" value="100" oninput="setScale(this.value)">
+
+      <span id="scaleText" class="chart-scale">100%</span>
+
+      <button class="mini-btn" type="button" onclick="fitWidth()">适配宽度</button>
+
+    </div>
+
+    <div class="chart-wrap" id="chartWrap">
+
+      <div class="ph">
+
+        <span class="ph-icon">📊</span>
+
+        输入数据并选择拟合类型<br>
+
+        按 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 或点击按钮开始
+
+      </div>
+
+    </div>
+
+    <div id="statsWrap"></div>
+
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+(function(){
+
+"use strict";
+
+var lastEq='',formKey='ls_form_v2',scaleKey='ls_scale_v1',saveTimer=null,activeCtrl=null,requestSeq=0,maxStoredDataChars=120000;
+
+var $=function(id){return document.getElementById(id)};
+
+var fields=['data','regType','xLabel','yLabel','xUnit','yUnit','xStep','yStep'];
+
+function clamp(v,lo,hi){v=+v;return isFinite(v)?Math.max(lo,Math.min(hi,v)):lo}
+
+function setStatus(msg,err){
+
+  var el=$('statusBar');
+
+  if(!msg){el.className='status';el.textContent='';return}
+
+  el.textContent=msg;
+
+  el.className='status show'+(err?' error':'');
+
+}
+
+function toast(msg){
+
+  var el=$('toast');el.textContent=msg;el.className='toast show';
+
+  setTimeout(function(){el.className='toast'},1300);
+
+}
+
+function escHTML(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function validLineCount(text,stopAt){
+
+  var count=0,start=0,n=text.length;
+
+  while(start<n){
+
+    var end=text.indexOf('\n',start);if(end<0)end=n;
+
+    var i=start;
+
+    while(i<end&&(text[i]===' '||text[i]==='\t'||text[i]==='\r'))i++;
+
+    if(i<end&&text[i]!=='#'&&++count>=stopAt)return count;
+
+    start=end+1;
+
+  }
+
+  return count;
+
+}
+
+function updateModelHint(){
+
+  var hints={
+
+    linear:'线性拟合：R 为 Pearson 相关系数，R² 为决定系数。',
+
+    quadratic:'二次拟合：使用 R² 评估拟合优度；R 不适用于此模型。',
+
+    exp:'指数拟合要求全部 y > 0；使用 R² 评估拟合优度。',
+
+    power:'幂函数拟合要求全部 x、y > 0；使用 R² 评估拟合优度。',
+
+    log:'对数拟合要求全部 x > 0；使用 R² 评估拟合优度。'
+
+  };
+
+  $('modelHint').textContent=hints[$('regType').value]||'';
+
+}
+
+function applyScale(){
+
+  var svg=document.querySelector('#chartWrap svg');
+
+  if(!svg)return;
+
+  if(!svg.dataset.bw){
+
+    svg.dataset.bw=svg.getAttribute('width')||'900';
+
+    svg.dataset.bh=svg.getAttribute('height')||'570';
+
+  }
+
+  var s=clamp($('chartScale').value,60,180);
+
+  svg.style.width=(+svg.dataset.bw*s/100|0)+'px';
+
+  svg.style.height=(+svg.dataset.bh*s/100|0)+'px';
+
+  $('scaleText').textContent=s+'%';
+
+}
+
+window.setScale=function(v){
+
+  var s=clamp(v,60,180);
+
+  $('chartScale').value=s;
+
+  localStorage.setItem(scaleKey,s);
+
+  applyScale();
+
+};
+
+window.fitWidth=function(){
+
+  var wrap=$('chartWrap'),svg=wrap.querySelector('svg');
+
+  if(!svg){setStatus('请先生成图表',true);return}
+
+  var bw=+(svg.dataset.bw||svg.getAttribute('width')||900)||900;
+
+  var target=Math.floor((wrap.clientWidth-16)*100/bw);
+
+  window.setScale(clamp(target,60,180));
+
+  wrap.scrollTop=wrap.scrollLeft=0;
+
+};
+
+function saveForm(){
+
+  if(saveTimer)clearTimeout(saveTimer);
+
+  saveTimer=setTimeout(function(){
+
+    var d={};
+
+    fields.forEach(function(k){
+
+      var value=$(k).value;
+
+      // 不把数 MB 的数据再复制到 localStorage，保留配置即可。
+
+      if(k!=='data'||value.length<=maxStoredDataChars)d[k]=value;
+
+    });
+
+    try{localStorage.setItem(formKey,JSON.stringify(d))}catch(_){}
+
+  },300);
+
+}
+
+function restoreForm(){
+
+  var saved=clamp(localStorage.getItem(scaleKey)||100,60,180);
+
+  $('chartScale').value=saved;
+
+  $('scaleText').textContent=saved+'%';
+
+  var raw=localStorage.getItem(formKey);
+
+  if(!raw){updateModelHint();return}
+
+  try{
+
+    var d=JSON.parse(raw);
+
+    fields.forEach(function(k){if(d[k]!==undefined&&$(k))$(k).value=d[k]});
+
+    setStatus('已恢复上次配置',false);
+
+  }catch(_){}
+
+  updateModelHint();
+
+}
+
+window.fillExample=function(){
+
+  $('data').value='1,2.1\n2,3.9\n3,6.2\n4,7.8\n5,10.1\n6,12.4';
+
+  toast('已填入示例');saveForm();
+
+};
+
+window.clearAll=function(){
+
+  $('data').value='';
+
+  ['xLabel','yLabel','xUnit','yUnit'].forEach(function(k){$(k).value=''});
+
+  $('xStep').value=$('yStep').value='0';
+
+  setStatus('已清空',false);saveForm();
+
+};
+
+function escSVG(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function g(v){
+  if(!Number.isFinite(v))return '—';
+  if(v===0)return '0';
+  var s=Number(v).toPrecision(6).replace(/(?:\.0+|(\.\d+?)0+)(e|$)/,'$1$2');
+  return s.replace('e+','e');
+}
+function formatVal(v){return Number.isFinite(v)?(Math.abs(v)>=1e21?String(v):v.toFixed(6)):'—'}
+function sg(v){return v>=0?' + '+g(v):' − '+g(-v)}
+function meanStable(a){if(!a.length)return NaN;var base=a[0],sum=0;for(var i=0;i<a.length;i++)sum+=(a[i]-base);return base+sum/a.length}
+function arrayMin(a){var m=Infinity;for(var i=0;i<a.length;i++)if(a[i]<m)m=a[i];return m}
+function arrayMax(a){var m=-Infinity;for(var i=0;i<a.length;i++)if(a[i]>m)m=a[i];return m}
+function parsePoints(raw){
+  var lines=raw.split(/\r?\n/),pts=[];
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i].trim();if(!line||line.charAt(0)==='#')continue;
+    var parts=line.split(/[\s,]+/);
+    if(parts.length!==2)throw new Error('第 '+(i+1)+' 行必须恰好包含两个数值（x 和 y）');
+    var x=Number(parts[0]),y=Number(parts[1]);
+    if(!Number.isFinite(x))throw new Error('第 '+(i+1)+' 行 x 值无法识别');
+    if(!Number.isFinite(y))throw new Error('第 '+(i+1)+' 行 y 值无法识别');
+    pts.push({x:x,y:y});
+    if(pts.length>200000)throw new Error('数据点超过上限 200000');
+  }
+  if(pts.length<2)throw new Error('至少需要 2 个数据点，当前 '+pts.length+' 个');
+  return pts;
+}
+function linearFit(xs,ys){
+  var n=xs.length,lo=arrayMin(xs),hi=arrayMax(xs),center=lo+(hi-lo)/2;
+  var scale=Math.max(Math.abs(hi-center),Math.abs(lo-center));
+  if(!Number.isFinite(scale)||scale===0)scale=1;
+  var ts=new Array(n);for(var i=0;i<n;i++)ts[i]=(xs[i]-center)/scale;
+  var mt=meanStable(ts),my=meanStable(ys),ssT=0,ssY=0,cov=0;
+  for(var j=0;j<n;j++){var dt=ts[j]-mt,dy=ys[j]-my;ssT+=dt*dt;ssY+=dy*dy;cov+=dt*dy;}
+  var betaT=ssT===0?0:cov/ssT;
+  var slope=betaT/scale;
+  var intercept=my-betaT*mt-slope*center;
+  var r=(ssT===0||ssY===0)?NaN:cov/Math.sqrt(ssT*ssY);
+  return {slope:slope,intercept:intercept,center:center,scale:scale,meanT:mt,meanY:my,betaT:betaT,r:r,fn:function(x){return my+betaT*((x-center)/scale-mt)}};
+}
+function solve3(matrix){
+  var m=matrix.map(function(row){return row.slice()});
+  var matScale=0;for(var r=0;r<3;r++)for(var c=0;c<3;c++)matScale=Math.max(matScale,Math.abs(m[r][c]));
+  if(!Number.isFinite(matScale)||matScale===0)return null;
+  var tol=Number.EPSILON*matScale*64;
+  for(var col=0;col<3;col++){
+    var pivot=col;for(var row=col+1;row<3;row++)if(Math.abs(m[row][col])>Math.abs(m[pivot][col]))pivot=row;
+    if(Math.abs(m[pivot][col])<=tol)return null;
+    if(pivot!==col){var tmp=m[col];m[col]=m[pivot];m[pivot]=tmp;}
+    for(var rr=col+1;rr<3;rr++){var f=m[rr][col]/m[col][col];for(var k=col;k<4;k++)m[rr][k]-=f*m[col][k];}
+  }
+  var v=[0,0,0];for(var ii=2;ii>=0;ii--){var z=m[ii][3];for(var jj=ii+1;jj<3;jj++)z-=m[ii][jj]*v[jj];if(Math.abs(m[ii][ii])<=tol)return null;v[ii]=z/m[ii][ii];}
+  return v;
+}
+function fitPoints(pts,regType){
+  var xs=pts.map(function(p){return p.x}),ys=pts.map(function(p){return p.y}),n=pts.length;
+  var xMin=arrayMin(xs),xMax=arrayMax(xs),yMean=meanStable(ys),fn,eq,rText='—';
+  if(regType==='linear'){
+    var lf=linearFit(xs,ys);fn=lf.fn;eq='y = '+g(lf.slope)+'·x'+sg(lf.intercept);rText=formatVal(lf.r);
+  }else if(regType==='quadratic'){
+    if(n<3)throw new Error('二次拟合至少需要 3 个数据点');
+    var center=xMin+(xMax-xMin)/2,scale=Math.max(Math.abs(xMax-center),Math.abs(xMin-center));
+    if(!Number.isFinite(scale)||scale===0)throw new Error('二次拟合失败：至少需要 3 个不同的数据点 x');
+    var st=[],s1=0,s2=0,s3=0,s4=0,t0=0,t1=0,t2=0;
+    for(var q=0;q<n;q++){var u=(xs[q]-center)/scale,uu=u*u;st.push(u);s1+=u;s2+=uu;s3+=uu*u;s4+=uu*uu;t0+=ys[q];t1+=u*ys[q];t2+=uu*ys[q];}
+    var coef=solve3([[s4,s3,s2,t2],[s3,s2,s1,t1],[s2,s1,n,t0]]);
+    if(!coef)throw new Error('二次拟合失败：矩阵奇异或 x 值重复过多');
+    var A=coef[0],B=coef[1],C=coef[2];fn=function(x){var u=(x-center)/scale;return A*u*u+B*u+C;};
+    var aa=A/(scale*scale),bb=B/scale-2*A*center/(scale*scale),cc=C-B*center/scale+A*center*center/(scale*scale);
+    if([aa,bb,cc].every(Number.isFinite))eq='y = '+g(aa)+'·x²'+sg(bb)+'·x'+sg(cc);
+    else eq='y = '+g(A)+'·u²'+sg(B)+'·u'+sg(C)+'，u=(x−'+g(center)+')/'+g(scale);
+  }else if(regType==='exp'){
+    if(ys.some(function(y){return y<=0}))throw new Error('指数拟合要求所有 y > 0');
+    var ly=ys.map(Math.log),ef=linearFit(xs,ly),lnA=ef.intercept,b=ef.slope,a=Math.exp(lnA);
+    fn=function(x){var v=ef.fn(x);return v>709?Infinity:(v< -745?0:Math.exp(v));};
+    eq='y = '+g(a)+' × e^('+g(b)+'·x)';
+  }else if(regType==='power'){
+    if(xs.some(function(x){return x<=0})||ys.some(function(y){return y<=0}))throw new Error('幂函数拟合要求所有 x > 0 且 y > 0');
+    var lx=xs.map(Math.log),ly2=ys.map(Math.log),pf=linearFit(lx,ly2),pa=Math.exp(pf.intercept),pb=pf.slope;
+    fn=function(x){if(x<=0)return NaN;var v=pf.fn(Math.log(x));return v>709?Infinity:(v< -745?0:Math.exp(v));};
+    eq='y = '+g(pa)+' × x^'+g(pb);
+  }else if(regType==='log'){
+    if(xs.some(function(x){return x<=0}))throw new Error('对数拟合要求所有 x > 0');
+    var lf2=linearFit(xs.map(Math.log),ys),la=lf2.slope,lb=lf2.intercept;
+    fn=function(x){return x<=0?NaN:la*Math.log(x)+lb;};
+    eq='y = '+g(la)+'·ln(x)'+sg(lb);
+  }else throw new Error('未知拟合类型');
+  var ssTot=0,ssRes=0;
+  for(var z=0;z<n;z++){var dy=ys[z]-yMean;ssTot+=dy*dy;var pred=fn(xs[z]);if(!Number.isFinite(pred)){ssRes=Infinity;break;}var er=ys[z]-pred;ssRes+=er*er;}
+  var r2=ssTot===0?1:(Number.isFinite(ssRes)?1-ssRes/ssTot:NaN);
+  return {fn:fn,eq:eq,r:rText,r2:formatVal(r2)+(Number.isFinite(r2)&&r2<0?'（拟合较差）':''),n:n,pts:pts,xMin:xMin,xMax:xMax,yMin:arrayMin(ys),yMax:arrayMax(ys),regType:regType};
+}
+function niceStep(span){if(!Number.isFinite(span)||span<=0)return 1;var raw=span/6,mag=Math.pow(10,Math.floor(Math.log10(raw))),norm=raw/mag;return (norm<1.5?1:norm<3.5?2:norm<7.5?5:10)*mag;}
+function makeTicks(lo,hi,step){var span=hi-lo;if(!Number.isFinite(span)||span<=0)return [lo];if(!Number.isFinite(step)||step<=0)step=niceStep(span);var est=Math.ceil(span/step)+1;if(est>16){step=niceStep(span/15);est=Math.ceil(span/step)+1;}var start=Math.ceil(lo/step)*step,ticks=[],eps=step*1e-9;for(var v=start;v<=hi+eps&&ticks.length<16;){var t=Math.round(v/step)*step;if(!ticks.length||Math.abs(t-ticks[ticks.length-1])>eps)ticks.push(t);var next=v+step;if(next===v||!Number.isFinite(next))break;v=next;}return ticks.length?ticks:[lo,hi];}
+function buildSVG(result){
+  var pts=result.pts,fn=result.fn,xMin=result.xMin,xMax=result.xMax,yMin=result.yMin,yMax=result.yMax;
+  var span=xMax-xMin;if(!Number.isFinite(span)||span===0)span=Math.max(Math.abs(xMin)*0.01,1);
+  var cxMin=xMin-span*.08,cxMax=xMax+span*.08;
+  if(result.regType==='log'||result.regType==='power'){
+    if(xMin>0)cxMin=Math.max(cxMin,xMin*.5);
+    else cxMin=Math.max(cxMin,Number.MIN_VALUE);
+  }
+  var samples=[],yLoData=yMin,yHiData=yMax;
+  for(var i=0;i<192;i++){var x=cxMin+(cxMax-cxMin)*i/191,y=fn(x);samples.push({x:x,y:y});if(Number.isFinite(y)){yLoData=Math.min(yLoData,y);yHiData=Math.max(yHiData,y);}}
+  xMin=Math.min(xMin,cxMin);xMax=Math.max(xMax,cxMax);yMin=yLoData;yMax=yHiData;
+  var xSpan=xMax-xMin,ySpan=yMax-yMin;if(!Number.isFinite(xSpan)||xSpan===0)xSpan=1;if(!Number.isFinite(ySpan)||ySpan===0)ySpan=Math.max(Math.abs(yMin)*.01,1);
+  var xLo=xMin-xSpan*.06,xHi=xMax+xSpan*.06,yLo=yMin-ySpan*.10,yHi=yMax+ySpan*.10;
+  var xStep=parseFloat($('xStep').value)||0,yStep=parseFloat($('yStep').value)||0;
+  if(xStep>0){xLo=Math.floor(xLo/xStep)*xStep;xHi=Math.ceil(xHi/xStep)*xStep;}
+  if(yStep>0){yLo=Math.floor(yLo/yStep)*yStep;yHi=Math.ceil(yHi/yStep)*yStep;}
+  if(!Number.isFinite(xLo)||!Number.isFinite(xHi)||xHi-xLo<Number.EPSILON*Math.max(1,Math.abs(xLo),Math.abs(xHi))) {xLo=xMin-xSpan*.06;xHi=xMax+xSpan*.06;}
+  if(!Number.isFinite(yLo)||!Number.isFinite(yHi)||yHi-yLo<Number.EPSILON*Math.max(1,Math.abs(yLo),Math.abs(yHi))) {yLo=yMin-ySpan*.1;yHi=yMax+ySpan*.1;if(yLo===yHi){yLo-=1;yHi+=1;}}
+  var W=900,H=570,pL=80,pR=36,pT=56,pB=70,pW=W-pL-pR,pH=H-pT-pB;
+  var xScale=pW/(xHi-xLo),yScale=pH/(yHi-yLo),sx=function(x){return pL+(x-xLo)*xScale},sy=function(y){return pT+pH-(y-yLo)*yScale};
+  var xt=makeTicks(xLo,xHi,xStep),yt=makeTicks(yLo,yHi,yStep),stride=Math.max(1,Math.ceil(pts.length/1200)),drawn=0,showTitles=stride===1&&pts.length<=800;
+  var xTitle=$('xLabel').value.trim(),yTitle=$('yLabel').value.trim(),xUnit=$('xUnit').value.trim(),yUnit=$('yUnit').value.trim();
+  xTitle=xTitle&&xUnit?xTitle+' ('+xUnit+')':xTitle||('x'+(xUnit?' ('+xUnit+')':''));
+  yTitle=yTitle&&yUnit?yTitle+' ('+yUnit+')':yTitle||('y'+(yUnit?' ('+yUnit+')':''));
+  var out=[];function w(s){out.push(s)}
+  w('<svg width="900" height="570" viewBox="0 0 900 570" xmlns="http://www.w3.org/2000/svg" style="font-family:Inter,system-ui,-apple-system,Arial,sans-serif;display:block">');
+  w('<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fafbfe"/><stop offset="100%" stop-color="#f0f4f9"/></linearGradient><filter id="ds" x="-4%" y="-4%" width="108%" height="108%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.06"/></filter><clipPath id="pc"><rect x="80" y="56" width="784" height="444" rx="4"/></clipPath></defs>');
+  w('<rect width="900" height="570" fill="url(#bg)"/><rect x="80" y="56" width="784" height="444" fill="#fff" rx="4" filter="url(#ds)"/>');
+  xt.forEach(function(t){var x=sx(t);w('<line x1="'+x+'" y1="56" x2="'+x+'" y2="500" stroke="#eaeff6" stroke-width=".7"/>');});
+  yt.forEach(function(t){var y=sy(t);w('<line x1="80" y1="'+y+'" x2="864" y2="'+y+'" stroke="#eaeff6" stroke-width=".7"/>');});
+  if(xLo<0&&xHi>0){var zx=sx(0);w('<line x1="'+zx+'" y1="56" x2="'+zx+'" y2="500" stroke="#c8d4e3" stroke-width=".9" stroke-dasharray="4,3"/>');}
+  if(yLo<0&&yHi>0){var zy=sy(0);w('<line x1="80" y1="'+zy+'" x2="864" y2="'+zy+'" stroke="#c8d4e3" stroke-width=".9" stroke-dasharray="4,3"/>');}
+  xt.forEach(function(t){var x=sx(t);w('<line x1="'+x+'" y1="500" x2="'+x+'" y2="505" stroke="#8899aa" stroke-width="1.2"/><text x="'+x+'" y="518" text-anchor="middle" font-size="10.5" fill="#5a6b7f">'+escSVG(g(t))+'</text>');});
+  yt.forEach(function(t){var y=sy(t);w('<line x1="75" y1="'+y+'" x2="80" y2="'+y+'" stroke="#8899aa" stroke-width="1.2"/><text x="71" y="'+y+'" text-anchor="end" dominant-baseline="middle" font-size="10.5" fill="#5a6b7f">'+escSVG(g(t))+'</text>');});
+  w('<line x1="80" y1="56" x2="80" y2="500" stroke="#3a4a5e" stroke-width="1.5"/><line x1="80" y1="500" x2="864" y2="500" stroke="#3a4a5e" stroke-width="1.5"/>');
+  w('<text x="472" y="530" text-anchor="middle" font-size="12.5" fill="#2d3748" font-weight="600">'+escSVG(xTitle)+'</text><text x="16" y="278" text-anchor="middle" font-size="12.5" fill="#2d3748" font-weight="600" transform="rotate(-90,16,278)">'+escSVG(yTitle)+'</text>');
+  w('<g clip-path="url(#pc)"><path d="');var first=true;
+  samples.forEach(function(p){if(!Number.isFinite(p.y)){first=true;return;}var px=sx(p.x),py=sy(p.y);if(!Number.isFinite(px)||!Number.isFinite(py)){first=true;return;}w((first?'M':'L')+px.toFixed(1)+','+py.toFixed(1));first=false;});
+  w('" fill="none" stroke="#e63946" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>');
+  var pointR=pts.length>5000?2.2:pts.length>1500?3:pts.length>300?4:5.5;
+  if(!showTitles)w('<g fill="#1d4ed8" fill-opacity="0.74" stroke="#ffffff" stroke-width="0.8">');
+  for(var i2=0;i2<pts.length;i2+=stride){var p=pts[i2],px=sx(p.x),py=sy(p.y);if(!Number.isFinite(px)||!Number.isFinite(py))continue;var c='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+pointR+'"';if(showTitles)c+=' fill="#1d4ed8" fill-opacity="0.82" stroke="#fff" stroke-width="1.2"><title>('+escSVG(g(p.x))+', '+escSVG(g(p.y))+')</title></circle>';else c+='/>';w(c);drawn++;}
+  if(pts.length-1>=0&&(pts.length-1)%stride!==0){var pLast=pts[pts.length-1],lx=sx(pLast.x),ly=sy(pLast.y);if(Number.isFinite(lx)&&Number.isFinite(ly)){var cl='<circle cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="'+pointR+'"';if(showTitles)cl+=' fill="#1d4ed8" fill-opacity="0.82" stroke="#fff" stroke-width="1.2"><title>('+escSVG(g(pLast.x))+', '+escSVG(g(pLast.y))+')</title></circle>';else cl+='/>';w(cl);drawn++;}}
+  if(!showTitles)w('</g>');w('</g>');
+  var lx2=666,ly2=10;w('<rect x="666" y="10" width="154" height="40" fill="#ffffff" fill-opacity="0.95" stroke="#dde4ed" rx="8"/><circle cx="682" cy="24" r="4.5" fill="#2563eb" stroke="#fff" stroke-width="1.5"/><text x="694" y="24" dominant-baseline="middle" font-size="11" fill="#374151">实测数据</text><line x1="674" y1="38" x2="690" y2="38" stroke="#e63946" stroke-width="2.5" stroke-linecap="round"/><text x="694" y="38" dominant-baseline="middle" font-size="11" fill="#374151">拟合曲线</text>');
+  var footer=result.eq;if(result.r!=='—')footer+='  R = '+result.r;footer+='  R² = '+result.r2+'  n = '+result.n;if(drawn<pts.length)footer+='  显示 '+drawn+' 点';
+  w('<text x="450" y="561" text-anchor="middle" font-size="12.5" fill="#374151" font-family="\'Times New Roman\',Georgia,serif">'+escSVG(footer)+'</text></svg>');
+  return out.join('');
+}
+window.doCalc=function(){
+  var btn=$('calcBtn');btn.disabled=true;btn.style.opacity='.7';
+  setStatus('正在浏览器本地计算…',false);saveForm();
+  try{
+    var points=parsePoints($('data').value);
+    var result=fitPoints(points,$('regType').value);
+    result.svg=buildSVG(result);
+    $('chartWrap').innerHTML=result.svg;applyScale();lastEq=result.eq||'';
+    $('statsWrap').innerHTML='<div class="stats"><div class="eq-line">📐 '+escHTML(result.eq)+'</div><div class="stats-nums">'+
+      '<span title="仅线性拟合的 R 为 Pearson 相关系数"><span class="label">R（仅线性）= </span><span class="value">'+escHTML(result.r||'—')+'</span></span>'+
+      '<span><span class="label">R² = </span><span class="value">'+escHTML(result.r2||'—')+'</span></span>'+
+      '<span><span class="label">n = </span><span class="value">'+result.n+'</span></span></div></div>';
+    setStatus('完成 · 数据仅在本机浏览器中计算，不会上传',false);
+  }catch(e){
+    $('chartWrap').innerHTML='<div class="err-box"><span>⚠️</span><span>'+escHTML(e&&e.message?e.message:'计算失败')+'</span></div>';
+    $('statsWrap').innerHTML='';lastEq='';setStatus(e&&e.message?e.message:'计算失败',true);
+  }finally{btn.disabled=false;btn.style.opacity='1';}
+};
+
+window.doSave=function(){
+
+  var svg=document.querySelector('#chartWrap svg');
+
+  if(!svg){setStatus('请先生成图表',true);return}
+
+  var b=new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml'});
+
+  var url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='regression.svg';
+
+  document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},1000);
+
+  toast('SVG 已保存');
+
+};
+
+// PNG 始终以 SVG 的 viewBox/原始属性尺寸为准，绝不读取 CSS 尺寸、DPR 或页面缩放。
+
+var pngExportBusy=false,maxPngPixels=33000000,maxCanvasSide=16384;
+
+function getSVGSourceSize(svg){
+
+  var viewBox=(svg.getAttribute('viewBox')||'').trim().split(/[\s,]+/);
+
+  var w=Number(viewBox[2]),h=Number(viewBox[3]);
+
+  if(isFinite(w)&&isFinite(h)&&w>0&&h>0)return {width:w,height:h};
+
+  w=Number(svg.getAttribute('width'));h=Number(svg.getAttribute('height'));
+
+  if(isFinite(w)&&isFinite(h)&&w>0&&h>0)return {width:w,height:h};
+
+  return null;
+
+}
+
+function setPNGExportBusy(busy){
+
+  ['savePngBtn','saveHighPngBtn','pngScale'].forEach(function(id){
+
+    var el=$(id);if(el)el.disabled=busy;
+
+  });
+
+}
+
+function pngSizeFailureMessage(scale){
+
+  return scale===8?'8× 图片尺寸过大，当前浏览器无法导出，请尝试 6× 或 4×。':'图片尺寸过大，当前浏览器无法导出，请尝试较低倍率。';
+
+}
+
+function savePNGAtScale(scale,isHigh){
+
+  if(pngExportBusy){setStatus('正在生成 PNG，请等待当前导出完成',true);return}
+
+  var svg=document.querySelector('#chartWrap svg');
+
+  if(!svg){setStatus('请先生成图表',true);return}
+
+  var sourceSize=getSVGSourceSize(svg);
+
+  if(!sourceSize){setStatus('PNG 导出失败：无法读取 SVG 原始尺寸',true);return}
+
+  scale=Number(scale);
+
+  if([2,4,6,8].indexOf(scale)<0){setStatus('PNG 导出失败：不支持的导出倍率',true);return}
+
+  var width=Math.round(sourceSize.width*scale),height=Math.round(sourceSize.height*scale),pixels=width*height;
+
+  if(!isFinite(pixels)||width<=0||height<=0||width>maxCanvasSide||height>maxCanvasSide||pixels>maxPngPixels){
+
+    setStatus(pngSizeFailureMessage(scale),true);return;
+
+  }
+
+  var taskName=isHigh?scale+'× 高清 PNG':'2× PNG';
+
+  var img=null,canvas=null,ctx=null,sourceURL='',downloadURL='';
+
+  function cleanup(){
+
+    if(sourceURL){URL.revokeObjectURL(sourceURL);sourceURL=''}
+
+    if(downloadURL){
+
+      var urlToRevoke=downloadURL;downloadURL='';
+
+      setTimeout(function(){URL.revokeObjectURL(urlToRevoke)},1000);
+
+    }
+
+    if(img){img.onload=img.onerror=null;img.src='';img=null}
+
+    if(canvas){canvas.width=1;canvas.height=1;canvas=null}
+
+    ctx=null;
+
+    pngExportBusy=false;setPNGExportBusy(false);
+
+  }
+
+  function fail(message){cleanup();setStatus(taskName+' 导出失败：'+message,true)}
+
+  pngExportBusy=true;setPNGExportBusy(true);
+
+  setStatus('正在生成 '+taskName+'…',false);
+
+  try{
+
+    var xml=new XMLSerializer().serializeToString(svg);
+
+    sourceURL=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));
+
+    img=new Image();
+
+    img.onload=function(){
+
+      try{
+
+        URL.revokeObjectURL(sourceURL);sourceURL='';
+
+        canvas=document.createElement('canvas');
+
+        canvas.width=width;canvas.height=height;
+
+        if(canvas.width!==width||canvas.height!==height){fail(pngSizeFailureMessage(scale));return}
+
+        ctx=canvas.getContext('2d',{alpha:false});
+
+        if(!ctx){fail('浏览器无法创建绘图上下文');return}
+
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
+
+        // 直接把矢量 SVG 光栅化至目标 Canvas，避免先生成低分辨率 PNG 再放大。
+
+        ctx.drawImage(img,0,0,width,height);
+
+        canvas.toBlob(function(blob){
+
+          if(!blob){fail(pngSizeFailureMessage(scale));return}
+
+          try{
+
+            downloadURL=URL.createObjectURL(blob);
+
+            var a=document.createElement('a');
+
+            a.href=downloadURL;a.download='regression-'+scale+'x.png';
+
+            document.body.appendChild(a);a.click();document.body.removeChild(a);
+
+            cleanup();
+
+            var done=isHigh?'高清 PNG 已保存（'+scale+'×，'+width+'×'+height+'）':'PNG 已保存（2×，'+width+'×'+height+'）';
+
+            setStatus(done,false);toast(done);
+
+          }catch(_){fail('无法创建下载文件')}
+
+        },'image/png');
+
+      }catch(_){fail(pngSizeFailureMessage(scale))}
+
+    };
+
+    img.onerror=function(){fail('SVG 转换为图片失败')};
+
+    img.src=sourceURL;
+
+  }catch(_){fail('无法创建 SVG 图片资源')}
+
+}
+
+// 保留原有快捷入口：固定导出 2× PNG。
+
+window.doSavePNG=function(){savePNGAtScale(2,false)};
+
+window.doSaveHighPNG=function(){savePNGAtScale($('pngScale').value,true)};
+
+window.doCopy=function(){
+
+  if(!lastEq){setStatus('请先生成结果',true);return}
+
+  function ok(){var b=$('copyBtn');b.textContent='✓';setTimeout(function(){b.textContent='📋'},1200);toast('已复制')}
+
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+
+    navigator.clipboard.writeText(lastEq).then(ok).catch(function(){
+
+      fallbackCopy(lastEq,ok);
+
+    });
+
+  }else{fallbackCopy(lastEq,ok)}
+
+};
+
+function fallbackCopy(text,cb){
+
+  var ta=document.createElement('textarea');ta.value=text;
+
+  ta.style.cssText='position:fixed;left:-9999px';
+
+  document.body.appendChild(ta);ta.select();
+
+  try{document.execCommand('copy');cb()}catch(_){setStatus('复制失败',true)}
+
+  document.body.removeChild(ta);
+
+}
+
+// ✅ 快捷键增强
+
+document.addEventListener('keydown',function(e){
+
+  if(!e.ctrlKey)return;
+
+  if(e.key==='Enter'){window.doCalc();return}
+
+  if(e.key==='s'){e.preventDefault();window.doSave();return}
+
+  if(e.key==='e'){e.preventDefault();window.doSavePNG();return}
+
+});
+
+document.addEventListener('input',function(e){if(fields.indexOf(e.target.id)>=0)saveForm()});
+
+document.addEventListener('change',function(e){
+
+  if(fields.indexOf(e.target.id)>=0)saveForm();
+
+  if(e.target.id==='regType')updateModelHint();
+
+});
+
+restoreForm();
+
+})();
+
+</script>
+
+</body>
+
+</html>
